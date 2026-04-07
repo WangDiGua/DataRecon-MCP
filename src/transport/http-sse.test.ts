@@ -19,7 +19,7 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     HTTP_PORT: 0,
     HTTP_HOST: "127.0.0.1",
     CORS_ORIGIN: "*",
-    WS_PORT: 3001,
+    WS_PORT: 3848,
     WS_HOST: "0.0.0.0",
     AUTH_TYPE: "none",
     JWT_SECRET: "test-secret",

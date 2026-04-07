@@ -2,7 +2,7 @@
   "mcpServers": {
     "datarecon": {
       "command": "node",
-      "args": ["D:/myWebsiteWorks/DataRecon-MCP/dist/index.js"],
+      "args": ["C:/absolute/path/to/DataRecon-MCP/dist/index.js"],
       "env": {
         "TRANSPORT_TYPE": "stdio",
         "MYSQL_HOST": "127.0.0.1",

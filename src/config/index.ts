@@ -26,11 +26,11 @@ const envSchema = z.object({
     .enum(["stdio", "http-sse", "websocket"])
     .default("stdio"),
 
-  HTTP_PORT: numEnv(3000),
+  HTTP_PORT: numEnv(3847),
   HTTP_HOST: z.string().default("0.0.0.0"),
   CORS_ORIGIN: z.string().default("*"),
 
-  WS_PORT: numEnv(3001),
+  WS_PORT: numEnv(3848),
   WS_HOST: z.string().default("0.0.0.0"),
 
   AUTH_TYPE: z.enum(["none", "jwt", "apikey"]).default("none"),

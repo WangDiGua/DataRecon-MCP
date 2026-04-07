@@ -19,11 +19,13 @@ describe("loadConfig", () => {
     vi.stubEnv("MYSQL_HOST", "localhost");
     vi.stubEnv("MYSQL_USER", "u");
     vi.stubEnv("MYSQL_PASSWORD", "p");
+    vi.stubEnv("HTTP_PORT", "");
+    vi.stubEnv("WS_PORT", "");
     const { loadConfig } = await import("./index.js");
     const c = loadConfig();
     expect(c.TRANSPORT_TYPE).toBe("stdio");
-    expect(c.HTTP_PORT).toBe(3000);
-    expect(c.WS_PORT).toBe(3001);
+    expect(c.HTTP_PORT).toBe(3847);
+    expect(c.WS_PORT).toBe(3848);
     expect(c.MYSQL_PORT).toBe(3306);
     expect(c.AUTH_TYPE).toBe("none");
     expect(c.MAX_QUERY_ROWS).toBe(200);

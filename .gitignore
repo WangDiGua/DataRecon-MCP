@@ -1,6 +1,8 @@
 node_modules/
 dist/
+# Real secrets only — `.env.production.example` is safe to commit as a template.
 .env
+!.env.production.example
 coverage/
 .DS_Store
 Thumbs.db
