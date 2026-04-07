@@ -29,6 +29,7 @@ const base = {
   API_KEY: "test-api-key",
   RATE_LIMIT_WINDOW_MS: 60_000,
   RATE_LIMIT_MAX: 100,
+  DATASOURCE_DENYLIST: [],
 } as const satisfies Omit<AppConfig, "AUTH_TYPE">;
 
 describe("verifyWebSocketUpgrade", () => {

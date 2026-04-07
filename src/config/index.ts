@@ -39,6 +39,17 @@ const envSchema = z.object({
 
   RATE_LIMIT_WINDOW_MS: numEnv(60_000),
   RATE_LIMIT_MAX: numEnv(100),
+
+  /** Comma-separated extra database names to hide from list_datasources (case-insensitive). */
+  DATASOURCE_DENYLIST: z
+    .string()
+    .default("")
+    .transform((s) =>
+      s
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean),
+    ),
 });
 
 export type AppConfig = Readonly<z.infer<typeof envSchema>>;

@@ -26,5 +26,6 @@ describe("loadConfig", () => {
     expect(c.MYSQL_PORT).toBe(3306);
     expect(c.AUTH_TYPE).toBe("none");
     expect(c.MAX_QUERY_ROWS).toBe(200);
+    expect(c.DATASOURCE_DENYLIST).toEqual([]);
   });
 });
