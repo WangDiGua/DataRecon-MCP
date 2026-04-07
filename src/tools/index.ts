@@ -56,7 +56,7 @@ export function registerTools(server: McpServer): void {
     "execute_query",
     {
       description:
-        "Run a SELECT with server-enforced LIMIT/OFFSET against db_name (read-only account; AST checks later).",
+        "Run a read-only SELECT: regex + AST checks, EXPLAIN row ceiling, MAX_EXECUTION_TIME hint, enforced LIMIT/OFFSET (no LIMIT in SQL).",
       inputSchema: {
         db_name: mysqlIdentifierSchema,
         sql: z.string().min(1).describe("SQL SELECT body."),
@@ -68,7 +68,10 @@ export function registerTools(server: McpServer): void {
       const cfg = loadConfig();
       const lim = Math.min(limit ?? cfg.MAX_QUERY_ROWS, cfg.MAX_QUERY_ROWS);
       const off = offset ?? 0;
-      const result = await runExecuteQuery(db_name, sql, lim, off);
+      const result = await runExecuteQuery(db_name, sql, lim, off, {
+        MAX_EXPLAIN_ROWS: cfg.MAX_EXPLAIN_ROWS,
+        MAX_EXECUTION_TIME: cfg.MAX_EXECUTION_TIME,
+      });
       return {
         content: [{ type: "text", text: toToolJson(result) }],
       };
