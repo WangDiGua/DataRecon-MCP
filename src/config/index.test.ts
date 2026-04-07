@@ -15,6 +15,7 @@ describe("loadConfig", () => {
 
   it("returns expected defaults with minimal env (MYSQL_HOST, MYSQL_USER, MYSQL_PASSWORD)", async () => {
     vi.unstubAllEnvs();
+    vi.stubEnv("TRANSPORT_TYPE", "stdio");
     vi.stubEnv("MYSQL_HOST", "localhost");
     vi.stubEnv("MYSQL_USER", "u");
     vi.stubEnv("MYSQL_PASSWORD", "p");

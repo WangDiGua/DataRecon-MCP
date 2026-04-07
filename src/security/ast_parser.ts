@@ -1,7 +1,9 @@
-import { Parser } from "node-sql-parser";
 import type { Select } from "node-sql-parser";
+import pkg from "node-sql-parser";
+import type { Parser as SqlParserInstance } from "node-sql-parser";
 
-const parser = new Parser();
+const { Parser: SqlParser } = pkg as { Parser: new () => SqlParserInstance };
+const parser = new SqlParser();
 const parseOpt = { database: "MySQL" as const };
 
 function countJoins(sel: Select): number {
