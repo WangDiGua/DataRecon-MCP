@@ -3,6 +3,36 @@ import type { RequestHandler } from "express";
 import jwt from "jsonwebtoken";
 import type { AppConfig } from "../config/index.js";
 
+/** Bearer token from `Authorization` header (no "Bearer " prefix). */
+export function extractBearerToken(authHeader: string | undefined): string | undefined {
+  if (!authHeader?.startsWith("Bearer ")) {
+    return undefined;
+  }
+  return authHeader.slice("Bearer ".length);
+}
+
+export function verifyJwtToken(token: string, secret: string): void {
+  jwt.verify(token, secret);
+}
+
+export function verifyApiKeyValue(provided: string | undefined, expected: string): boolean {
+  return provided !== undefined && provided === expected;
+}
+
+/** API key from `X-API-Key` or `Authorization: Bearer <key>`. */
+export function extractApiKeyFromHttpHeaders(
+  headers: IncomingMessage["headers"],
+): string | undefined {
+  const headerKey = headers["x-api-key"];
+  const fromHeader =
+    typeof headerKey === "string"
+      ? headerKey
+      : Array.isArray(headerKey)
+        ? headerKey[0]
+        : undefined;
+  return fromHeader ?? extractBearerToken(headers.authorization);
+}
+
 export type WebSocketUpgradeAuthResult =
   | { ok: true }
   | { ok: false; statusCode: number; body: string };
@@ -31,7 +61,7 @@ export function verifyWebSocketUpgrade(
       };
     }
     try {
-      jwt.verify(token, config.JWT_SECRET);
+      verifyJwtToken(token, config.JWT_SECRET);
       return { ok: true };
     } catch {
       return {
@@ -44,10 +74,9 @@ export function verifyWebSocketUpgrade(
 
   const fromQuery =
     url.searchParams.get("api_key") ?? url.searchParams.get("apiKey");
-  const auth = req.headers.authorization;
-  const fromBearer = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
+  const fromBearer = extractBearerToken(req.headers.authorization);
   const key = fromQuery ?? fromBearer;
-  if (key === config.API_KEY) {
+  if (verifyApiKeyValue(key, config.API_KEY)) {
     return { ok: true };
   }
   return {
@@ -66,14 +95,13 @@ export function createAuthMiddleware(config: AppConfig): RequestHandler {
 
   if (config.AUTH_TYPE === "jwt") {
     return (req, res, next) => {
-      const auth = req.headers.authorization;
-      if (!auth?.startsWith("Bearer ")) {
+      const token = extractBearerToken(req.headers.authorization);
+      if (!token) {
         res.status(401).json({ error: "Unauthorized" });
         return;
       }
-      const token = auth.slice("Bearer ".length);
       try {
-        jwt.verify(token, config.JWT_SECRET);
+        verifyJwtToken(token, config.JWT_SECRET);
         next();
       } catch {
         res.status(401).json({ error: "Unauthorized" });
@@ -82,17 +110,8 @@ export function createAuthMiddleware(config: AppConfig): RequestHandler {
   }
 
   return (req, res, next) => {
-    const headerKey = req.headers["x-api-key"];
-    const fromHeader =
-      typeof headerKey === "string"
-        ? headerKey
-        : Array.isArray(headerKey)
-          ? headerKey[0]
-          : undefined;
-    const auth = req.headers.authorization;
-    const fromBearer = auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length) : undefined;
-    const key = fromHeader ?? fromBearer;
-    if (key === config.API_KEY) {
+    const key = extractApiKeyFromHttpHeaders(req.headers);
+    if (verifyApiKeyValue(key, config.API_KEY)) {
       next();
       return;
     }
