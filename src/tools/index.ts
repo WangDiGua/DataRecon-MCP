@@ -7,6 +7,8 @@ import { runListDatasources } from "./list_datasources.js";
 import { runGetTableList } from "./get_table_list.js";
 import { runGetTableSchema } from "./get_table_schema.js";
 import { runExecuteQuery } from "./execute_query.js";
+import { runStoreToMemory } from "./store_to_memory.js";
+import { runAnalyzeMemory } from "./analyze_memory.js";
 
 export function registerTools(server: McpServer): void {
   server.registerTool(
@@ -75,6 +77,46 @@ export function registerTools(server: McpServer): void {
       return {
         content: [{ type: "text", text: toToolJson(result) }],
       };
+    },
+  );
+
+  server.registerTool(
+    "store_to_memory",
+    {
+      description:
+        "Store a JSON array of row objects in an in-memory session (quotas from MAX_SESSION_ROWS / MAX_SESSION_BYTES).",
+      inputSchema: {
+        session_id: z
+          .string()
+          .min(1)
+          .optional()
+          .describe("Reuse an existing session id or omit to create one."),
+        rows: z
+          .array(z.record(z.string(), z.unknown()))
+          .min(1)
+          .describe("Result rows, same shape as execute_query rows."),
+      },
+    },
+    async ({ session_id, rows }) => {
+      const out = runStoreToMemory(session_id, rows);
+      return { content: [{ type: "text", text: toToolJson(out) }] };
+    },
+  );
+
+  server.registerTool(
+    "analyze_memory",
+    {
+      description:
+        "Aggregate data previously stored with store_to_memory (count, sum, avg, group_by).",
+      inputSchema: {
+        session_id: z.string().min(1),
+        op: z.enum(["count", "sum", "avg", "group_by"]),
+        column: z.string().min(1).optional().describe("Column name for sum, avg, or group_by."),
+      },
+    },
+    async ({ session_id, op, column }) => {
+      const out = runAnalyzeMemory(session_id, op, column);
+      return { content: [{ type: "text", text: toToolJson(out) }] };
     },
   );
 }
