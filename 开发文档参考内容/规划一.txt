@@ -1,0 +1,136 @@
+这份 **《数据探查助手：基于 Node.js 的 MCP 插件开发全量指南》** 将作为你项目的“建筑蓝图”。它不仅涵盖了基础的 API 定义，还包含了我们讨论过的分页逻辑、内存管理以及安全沙箱的设计细节。
+
+---
+
+## 1. 项目概述
+本插件旨在为大模型提供一套深度的 MySQL 数据库探查工具集，使其能够像资深 DBA 一样完成从“环境探测”到“复杂数据取数与分析”的全流程。
+
+* **核心语言**：Node.js (TypeScript)
+* **通信协议**：Model Context Protocol (MCP) via Stdio
+* **目标数据库**：MySQL (只读权限)
+* **核心特性**：强制分页、原始报错透传、临时内存计算、SQL 安全拦截。
+
+---
+
+## 2. 技术架构设计
+
+
+
+### 2.1 模块划分
+1.  **Transport 层**：使用 `@modelcontextprotocol/sdk` 处理标准输入输出。
+2.  **Logic 控制层**：处理工具分发、参数校验。
+3.  **Security 拦截层**：SQL 语法静态分析（只允许 SELECT）与账号权限双重保险。
+4.  **Database 适配层**：基于 `mysql2/promise` 的连接池管理。
+5.  **Memory 缓冲区**：基于 `LRU-Cache` 的会话数据存储，支持跨页数据聚合。
+
+---
+
+## 3. 工具集定义 (Tools Specification)
+
+### 3.1 探测阶段工具
+| 工具名称 | 描述 | 参数 |
+| :--- | :--- | :--- |
+| `list_datasources` | 获取当前 MySQL 实例下所有的 Database 清单。 | 无 |
+| `get_table_list` | 获取指定数据库内所有表的名称及 **COMMENT**。 | `db_name` (string) |
+| `get_table_schema` | 获取表的详细列定义、类型、索引及 **字段注释**。 | `db_name`, `table_name` (string) |
+
+### 3.2 执行与分析工具
+#### `execute_query` (核心取数工具)
+* **功能**：执行 SELECT 语句。
+* **参数**：
+    * `db_name`: 目标库。
+    * `sql`: SQL 语句（内部自动处理分页）。
+    * `limit`: 默认 100，最大 200。
+    * `offset`: 偏移量，默认 0。
+* **返回结构**：
+    ```json
+    {
+      "rows": [], 
+      "meta": { "has_more": boolean, "next_offset": number, "error": string | null }
+    }
+    ```
+
+#### `store_to_memory` (子 Agent 暂存工具)
+* **功能**：将分页获取的原始数据存入 Node.js 内存缓冲区。
+* **参数**：`session_id` (string), `data` (array)。
+
+#### `analyze_memory` (后端计算工具)
+* **功能**：在不消耗模型 Token 的情况下，对缓冲区数据进行聚合计算。
+* **参数**：`session_id`, `action` ("sum" | "avg" | "count" | "group_by"), `column`。
+
+---
+
+## 4. 关键逻辑实现细节
+
+### 4.1 强制只读与 SQL 注入防护
+* **账号约束**：数据库连接必须使用具有 `GRANT SELECT ON *.*` 权限的普通用户。
+* **静态检查**：在执行前，使用正则检测 `UPDATE|DELETE|DROP|ALTER|TRUNCATE|INSERT|REPLACE`。
+* **语法改写**：
+    1.  去除 SQL 末尾的分号。
+    2.  构造包装 SQL：`SELECT * FROM (${original_sql}) AS sub_query LIMIT ${safe_limit} OFFSET ${safe_offset}`。这能有效防止模型在内部写死非法的 LIMIT。
+
+### 4.2 原始报错处理策略
+当 `mysql2` 抛出异常时，直接返回给模型：
+```typescript
+try {
+  const [rows] = await connection.execute(wrappedSql);
+  return { content: [{ type: "text", text: JSON.stringify(rows) }] };
+} catch (error) {
+  // 返回原始错误码，例如 ER_BAD_FIELD_ERROR
+  return { 
+    isError: true, 
+    content: [{ type: "text", text: `MySQL Error [${error.code}]: ${error.message}` }] 
+  };
+}
+```
+
+### 4.3 临时内存 (Session Memory) 实现
+在 Node.js 中维护一个简单的 `SessionManager`：
+```typescript
+class SessionManager {
+  private cache = new Map<string, any[]>();
+
+  push(sessionId: string, newData: any[]) {
+    const existing = this.cache.get(sessionId) || [];
+    // 强制限制单个 Session 存储上限为 10000 行
+    if (existing.length + newData.length > 10000) throw new Error("Memory Limit Exceeded");
+    this.cache.set(sessionId, [...existing, ...newData]);
+  }
+
+  calculate(sessionId: string, action: string, col: string) {
+    const data = this.cache.get(sessionId);
+    // 执行相应聚合逻辑并返回单一数值或精简 JSON
+  }
+}
+```
+
+---
+
+## 5. 提示词工程 (System Prompt 指南)
+
+为了让子 Agent 能够正确“Spawn”，需要在使用该插件时配套以下系统提示：
+
+> 你是一个具备自主数据探查能力的 AI 专家。
+> 1. **探测优先**：在不熟悉表结构时，严禁直接执行 `execute_query`，必须先调用 `get_table_schema` 观察字段注释。
+> 2. **分页循环**：若 `has_more` 为真且任务需要更多数据，你应利用 `offset` 持续翻页。
+> 3. **计算下放**：若数据量大，请通过 `store_to_memory` 暂存数据，并调用 `analyze_memory` 获取统计结果，而非要求系统返回成千上万行 JSON。
+> 4. **容错机制**：遇到 SQL 报错时，请根据错误码（如字段名拼写错误）立即修正并重试，无需向用户询问。
+
+---
+
+## 6. 开发环境与部署
+
+### 6.1 依赖清单
+* `@modelcontextprotocol/sdk`: MCP 核心通讯。
+* `mysql2`: 高性能 MySQL 驱动。
+* `zod`: 工具入参的 Schema 校验。
+* `dotenv`: 敏感连接信息管理。
+
+### 6.2 部署建议
+* **本地调试**：使用 `claude_desktop_config.json` 挂载编译后的 `index.js`。
+* **生产部署**：建议运行在轻量级 Docker 容器中，限制 CPU 和内存使用，防止恶意 SQL 导致 OOM（内存溢出）。
+
+---
+
+### 7. 结语
+这份开发书锁定了 **Node.js + MySQL** 的技术栈，通过**强制分页、内存缓冲、报错透传**三大支柱，确保了“数据探查助手”在处理复杂任务时的自主性与安全性。你可以基于此框架开始具体的模块化开发。
