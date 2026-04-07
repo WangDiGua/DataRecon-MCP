@@ -1,6 +1,16 @@
 import { initLogger, logError } from "./utils/logger.js";
+import { loadConfig } from "./config/index.js";
+import { createMcpServer } from "./server.js";
+import { startTransport } from "./transport/index.js";
 
-initLogger();
+async function main(): Promise<void> {
+  initLogger();
+  const config = loadConfig();
+  const mcp = createMcpServer();
+  await startTransport(mcp, config.TRANSPORT_TYPE);
+}
 
-logError("DataRecon-MCP: scaffold only — full server in later tasks");
-process.exit(0);
+main().catch((err: unknown) => {
+  logError("fatal", { err: err instanceof Error ? err.message : String(err) });
+  process.exit(1);
+});
