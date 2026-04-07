@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "datarecon": {
+      "command": "node",
+      "args": ["D:/myWebsiteWorks/DataRecon-MCP/dist/index.js"],
+      "env": {
+        "TRANSPORT_TYPE": "stdio",
+        "MYSQL_HOST": "127.0.0.1",
+        "MYSQL_PORT": "3307",
+        "MYSQL_USER": "readonly",
+        "MYSQL_PASSWORD": "readonly",
+        "MYSQL_DATABASE": "testdb"
+      }
+    }
+  }
+}
