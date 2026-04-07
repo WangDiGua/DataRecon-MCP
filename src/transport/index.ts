@@ -1,17 +1,19 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { AppConfig } from "../config/index.js";
+import { createMcpServer } from "../server.js";
 import { startStdioServer } from "./stdio.js";
+import { startHttpSseServer } from "./http-sse.js";
 
-export async function startTransport(
-  mcp: McpServer,
-  transportType: AppConfig["TRANSPORT_TYPE"],
-): Promise<void> {
-  switch (transportType) {
-    case "stdio":
+export async function startTransport(config: AppConfig): Promise<void> {
+  switch (config.TRANSPORT_TYPE) {
+    case "stdio": {
+      const mcp = createMcpServer();
       await startStdioServer(mcp);
       return;
+    }
     case "http-sse":
+      await startHttpSseServer(config);
+      return;
     case "websocket":
-      throw new Error(`TRANSPORT_TYPE not implemented: ${transportType}`);
+      throw new Error("TRANSPORT_TYPE not implemented: websocket");
   }
 }

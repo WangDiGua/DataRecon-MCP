@@ -1,13 +1,11 @@
 import { initLogger, logError } from "./utils/logger.js";
 import { loadConfig } from "./config/index.js";
-import { createMcpServer } from "./server.js";
 import { startTransport } from "./transport/index.js";
 
 async function main(): Promise<void> {
   initLogger();
   const config = loadConfig();
-  const mcp = createMcpServer();
-  await startTransport(mcp, config.TRANSPORT_TYPE);
+  await startTransport(config);
 }
 
 main().catch((err: unknown) => {
