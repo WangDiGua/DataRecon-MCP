@@ -22,7 +22,7 @@ describe("assertExplainRowEstimate", () => {
         "SELECT 1",
         1_000_000,
       ),
-    ).rejects.toThrow(/EXPLAIN estimates/);
+    ).rejects.toThrow(/EXPLAIN_ROW_CEILING/);
 
     expect(query).toHaveBeenNthCalledWith(1, "USE ??", ["db"]);
   });

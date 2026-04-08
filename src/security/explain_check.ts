@@ -27,7 +27,11 @@ export async function assertExplainRowEstimate(
     }
     if (maxSeen > maxExplainRows) {
       throw new Error(
-        `EXPLAIN estimates ${maxSeen} rows scanned; maximum allowed is ${maxExplainRows}`,
+        [
+          `SQL 执行前检查失败 [EXPLAIN_ROW_CEILING]：EXPLAIN 估算扫描行数约为 ${maxSeen}，超过允许上限 ${maxExplainRows}。`,
+          "原因：防止可能过重的全表扫描或大结果集，保护数据库与接口超时。",
+          "处理：为条件列补索引、缩小 WHERE 时间/范围、避免前置 SELECT * 大表；或联系管理员提高 MAX_EXPLAIN_ROWS（权衡风险）。",
+        ].join(" "),
       );
     }
   } finally {

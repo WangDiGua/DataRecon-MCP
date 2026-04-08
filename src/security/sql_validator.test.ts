@@ -7,7 +7,7 @@ describe("runSqlPreflight", () => {
   });
 
   it("rejects comments", () => {
-    expect(() => runSqlPreflight("SELECT 1 -- x")).toThrow(/comment/i);
+    expect(() => runSqlPreflight("SELECT 1 -- x")).toThrow(/SQL_COMMENTS_NOT_ALLOWED/);
   });
 
   it("allows plain SELECT", () => {
